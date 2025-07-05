@@ -1,0 +1,37 @@
+{
+  "name": "limitless-lifelog-parser",
+  "version": "1.0.0",
+  "description": "Automatically pull and parse Limitless.ai lifelogs for ChatGPT memory integration",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "build": "npm run install:client && npm run build:client",
+    "install:client": "cd client && npm install",
+    "build:client": "cd client && npm run build",
+    "setup": "npm install && npm run build"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "axios": "^1.6.0",
+    "dotenv": "^16.3.1",
+    "multer": "^2.0.0",
+    "js-tiktoken": "^1.0.12",
+    "date-fns": "^2.30.0",
+    "node-cron": "^3.0.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "keywords": [
+    "limitless.ai",
+    "lifelog",
+    "chatgpt",
+    "memory",
+    "parser",
+    "ai"
+  ],
+  "author": "Ninja AI",
+  "license": "MIT"
+}
