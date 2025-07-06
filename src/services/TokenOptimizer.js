@@ -49,16 +49,13 @@ class TokenOptimizer {
       maxTokens = 8000,
       includeTimestamps = true,
       includeSpeakers = true,
-      summarizeLevel = 'medium', // 'low', 'medium', 'high'
       chunkStrategy = 'semantic', // 'fixed', 'semantic', 'temporal'
-      preserveImportant = true
     } = options;
 
     // Extract and clean content
     const cleanedContent = this.extractAndCleanContent(lifelogs, {
       includeTimestamps,
       includeSpeakers,
-      summarizeLevel
     });
 
     // Calculate total tokens
@@ -87,7 +84,7 @@ class TokenOptimizer {
         break;
       case 'fixed':
       default:
-        optimizedResult = await this.fixedChunking(cleanedContent, maxTokens, options);
+        optimizedResult = await this.fixedChunking(cleanedContent, maxTokens);
         break;
     }
 
@@ -111,7 +108,6 @@ class TokenOptimizer {
     const {
       includeTimestamps,
       includeSpeakers,
-      summarizeLevel
     } = options;
 
     let fullText = '';
@@ -144,7 +140,6 @@ class TokenOptimizer {
       if (lifelog.markdown) {
         const processedContent = this.processContentBySummarizeLevel(
           lifelog.markdown, 
-          summarizeLevel,
           includeSpeakers
         );
         entryText += processedContent + '\n\n';
@@ -291,7 +286,7 @@ class TokenOptimizer {
    * @param {object} options - Additional options
    * @returns {object} Chunked result
    */
-  async fixedChunking(cleanedContent, maxTokens, options) {
+  async fixedChunking(cleanedContent, maxTokens) {
     const { fullText } = cleanedContent;
     const chunks = [];
     const chunkSize = Math.floor(maxTokens * 0.9); // Leave some buffer
@@ -343,8 +338,8 @@ class TokenOptimizer {
    * @param {object} options - Additional options
    * @returns {object} Chunked result
    */
-  async semanticChunking(cleanedContent, maxTokens, options) {
-    const { fullText, metadata } = cleanedContent;
+  async semanticChunking(cleanedContent, maxTokens) {
+    const { fullText } = cleanedContent;
     const chunks = [];
     
     // Split by topics/headings first
@@ -373,7 +368,7 @@ class TokenOptimizer {
 
         // If single section is too large, split it further
         if (this.countTokens(section) > chunkSize) {
-          const subChunks = await this.fixedChunking({ fullText: section }, maxTokens, options);
+          const subChunks = await this.fixedChunking({ fullText: section }, maxTokens);
           for (const subChunk of subChunks.chunks) {
             chunks.push({
               ...subChunk,
@@ -428,7 +423,6 @@ class TokenOptimizer {
       maxTokens = 120000,
       includeTimestamps = true,
       includeSpeakers = true,
-      summarizeLevel = 'low',
       prioritizeTopics = true
     } = options;
 
@@ -490,7 +484,7 @@ class TokenOptimizer {
 
     // Add summary if content was truncated
     if (totalTokens >= maxTokens * 0.95) {
-      const remainingEntries = lifelogs.length - this.countProcessedEntries(groupedContent, maxTokens);
+      const remainingEntries = lifelogs.length - this.countProcessedEntries(groupedContent);
       if (remainingEntries > 0) {
         consolidatedContent += `\n## Summary\n\n`;
         consolidatedContent += `Note: ${remainingEntries} additional entries were summarized due to token limits. `;
@@ -571,131 +565,6 @@ class TokenOptimizer {
    * @param {object} options - Processing options
    * @returns {object} Cleaned content with metadata
    */
-  extractAndCleanContent(lifelogs, options = {}) {
-    const { includeTimestamps = false, includeSpeakers = false } = options;
-    let fullText = '';
-    const metadata = {
-      totalEntries: lifelogs.length,
-      dateRange: this.getDateRange(lifelogs),
-      topics: [],
-      speakers: new Set(),
-      starredCount: 0
-    };
-
-    // Process each lifelog entry
-    for (const lifelog of lifelogs) {
-      const entryText = this.formatLifelogEntry(lifelog, { includeTimestamps, includeSpeakers });
-      fullText += entryText + '\n\n';
-
-      // Extract metadata
-      if (lifelog.title) {
-        metadata.topics.push(lifelog.title);
-      }
-      if (lifelog.isStarred) metadata.starredCount++;
-    }
-
-    return {
-      fullText: fullText.trim(),
-      metadata: {
-        ...metadata,
-        speakers: Array.from(metadata.speakers)
-      }
-    };
-  }
-
-  /**
-   * Get date range from lifelogs
-   * @param {Array} lifelogs - Array of lifelog entries
-   * @returns {object} Date range with start and end dates
-   */
-  getDateRange(lifelogs) {
-    if (!lifelogs || lifelogs.length === 0) {
-      return { start: null, end: null };
-    }
-
-    const dates = lifelogs
-      .filter(log => log.startTime)
-      .map(log => new Date(log.startTime))
-      .sort((a, b) => a - b);
-
-    return {
-      start: dates[0] || null,
-      end: dates[dates.length - 1] || null
-    };
-  }
-
-  /**
-   * Semantic chunking strategy
-   * @param {object} cleanedContent - Cleaned content object
-   * @param {number} maxTokens - Maximum tokens per chunk
-   * @param {object} options - Chunking options
-   * @returns {object} Chunked content
-   */
-  async semanticChunking(cleanedContent, maxTokens, options = {}) {
-    // For now, fall back to fixed chunking
-    return await this.fixedChunking(cleanedContent, maxTokens, options);
-  }
-
-  /**
-   * Temporal chunking strategy
-   * @param {object} cleanedContent - Cleaned content object
-   * @param {number} maxTokens - Maximum tokens per chunk
-   * @param {object} options - Chunking options
-   * @returns {object} Chunked content
-   */
-  async temporalChunking(cleanedContent, maxTokens, options = {}) {
-    // For now, fall back to fixed chunking
-    return await this.fixedChunking(cleanedContent, maxTokens, options);
-  }
-
-  /**
-   * Fixed chunking strategy
-   * @param {object} cleanedContent - Cleaned content object
-   * @param {number} maxTokens - Maximum tokens per chunk
-   * @param {object} options - Chunking options
-   * @returns {object} Chunked content
-   */
-  async fixedChunking(cleanedContent, maxTokens, options = {}) {
-    const { chunkSize = Math.floor(maxTokens * 0.8) } = options;
-    const chunks = [];
-    const text = cleanedContent.fullText;
-    const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0);
-    
-    let currentChunk = '';
-    
-    for (const sentence of sentences) {
-      const testChunk = currentChunk + sentence + '. ';
-      const tokenCount = this.countTokens(testChunk);
-      
-      if (tokenCount <= chunkSize) {
-        currentChunk = testChunk;
-      } else {
-        if (currentChunk) {
-          chunks.push({
-            content: currentChunk.trim(),
-            tokenCount: this.countTokens(currentChunk),
-            topics: this.extractTopicsFromText(currentChunk)
-          });
-        }
-        currentChunk = sentence + '. ';
-      }
-    }
-    
-    // Add the last chunk
-    if (currentChunk) {
-      chunks.push({
-        content: currentChunk.trim(),
-        tokenCount: this.countTokens(currentChunk),
-        topics: this.extractTopicsFromText(currentChunk)
-      });
-    }
-
-    return {
-      chunks,
-      metadata: cleanedContent.metadata,
-      totalTokens: chunks.reduce((sum, chunk) => sum + chunk.tokenCount, 0)
-    };
-  }
 
   /**
    * Group lifelogs by topics and importance for better organization
@@ -703,7 +572,7 @@ class TokenOptimizer {
    * @param {object} options - Grouping options
    * @returns {object} Grouped content structure
    */
-  groupByTopicsAndImportance(lifelogs, options = {}) {
+  groupByTopicsAndImportance(lifelogs) {
     const highPriority = [];
     const mediumPriority = [];
     const lowPriority = [];
@@ -802,7 +671,7 @@ class TokenOptimizer {
    * @param {number} maxTokens - Maximum token limit
    * @returns {number} Number of processed entries
    */
-  countProcessedEntries(groupedContent, maxTokens) {
+  countProcessedEntries(groupedContent) {
     // This is a simplified count - in practice, we'd track this during processing
     return groupedContent.highPriority.length + 
            Math.floor(groupedContent.mediumPriority.length * 0.8) +
