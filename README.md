@@ -49,7 +49,7 @@ npm start
 ```
 
 ### Step 3: Use the Application
-- Open `http://localhost:3000`
+- Open `http://localhost:3002`
 - Enter your Limitless.ai API key
 - Click "Load Dates" to see available dates
 - Select "Consolidated Export" for best results
@@ -128,4 +128,12 @@ Perfect for building consistent ChatGPT memory from your Limitless.ai lifelogs!
 
 ## 📄 License
 
-MIT License - feel free to use and modify.
+MIT License - feel free to use and modify
+### Environment Variables
+Copy `.env.example` to `.env` and set `PORT` and `API_KEY`.
+
+### Version 2.1 - Maintenance
+- Added `.gitignore` and example env file
+- Unified default port to 3002
+- Removed duplicate code in `TokenOptimizer`
+- Added basic tests and ESLint configuration
